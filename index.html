@@ -6,6 +6,14 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
+    <meta
+      name="description"
+      content="AI-powered anime chatbot assistant. Get anime recommendations, manga insights, character analysis, and Japanese culture information."
+    />
+    <meta
+      name="keywords"
+      content="anime, manga, chatbot, AI assistant, anime recommendations"
+    />
     <title>Anime Intelligence Assistant</title>
     <link
       rel="icon"
@@ -29,11 +37,92 @@
             <p>Powered by OpenAI</p>
           </div>
         </div>
+        <button
+          id="themeToggle"
+          class="theme-toggle-btn"
+          title="Toggle light/dark mode"
+        >
+          <svg
+            id="sunIcon"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="5"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <path
+              d="M12 1v6m0 6v6m11-11h-6m-6 0H1m17.66-4.34l-4.24 4.24m-6.84 0L2.34 2.34m4.24 15.08l-4.24 4.24m15.08-4.24l4.24 4.24"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+          </svg>
+          <svg
+            id="moonIcon"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            style="display: none"
+          >
+            <path
+              d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          id="clearChatButton"
+          class="clear-chat-btn"
+          title="Clear chat history"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
       </div>
 
       <div class="chat-messages" id="chatMessages"></div>
 
       <div class="chat-input-container">
+        <div class="quick-actions" id="quickActions">
+          <button
+            class="quick-action-btn"
+            data-query="Show me the most popular anime right now"
+          >
+            🔥 Popular Anime
+          </button>
+          <button
+            class="quick-action-btn"
+            data-query="Recommend me anime based on action and adventure genres"
+          >
+            ⚔️ Action & Adventure
+          </button>
+          <button
+            class="quick-action-btn"
+            data-query="What are the best new anime this season?"
+          >
+            ✨ This Season
+          </button>
+        </div>
+
         <div class="input-wrapper">
           <input
             type="text"
@@ -58,6 +147,7 @@
             </svg>
           </button>
         </div>
+        <div class="char-counter" id="charCounter">0 / 500</div>
       </div>
     </div>
 

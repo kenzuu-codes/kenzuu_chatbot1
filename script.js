@@ -3,6 +3,11 @@ let _config = {
   openAI_model: 'gpt-4o-mini',
   ai_instruction: `You are a professional anime expert and educator specializing EXCLUSIVELY in anime, manga, and Japanese animation culture.
 
+CRITICAL ACCURACY RULES:
+1. Do NOT fabricate or invent anime titles that don't exist. Only recommend real anime series.
+2. When discussing anime seasons or release dates, mention that information may not be current and suggest checking MyAnimeList or Crunchyroll for the latest updates.
+3. Focus on providing helpful information about anime you know about, and be honest when information may be outdated.
+
 STRICT TOPIC BOUNDARIES:
 - ONLY answer questions related to: anime, manga, Japanese animation, anime characters, anime studios, voice actors (seiyuu), anime directors, anime genres, Japanese pop culture related to anime, anime conventions, cosplay, anime merchandise, anime streaming platforms, light novels, visual novels, anime music (openings/endings/OSTs), Japanese cultural elements in anime, otaku culture, and anime industry news
 - If a question is NOT about anime or related Japanese animation culture, you MUST politely decline and redirect
@@ -92,13 +97,19 @@ class AnimeBot {
     this.chatMessages = document.getElementById('chatMessages')
     this.userInput = document.getElementById('userInput')
     this.sendButton = document.getElementById('sendButton')
+    this.isProcessing = false
+    this.STORAGE_KEYS = {
+      MESSAGES: 'anime_chat_history',
+      THEME: 'anime_chat_theme',
+    }
 
     this.initialize()
   }
 
   initialize() {
     this.setupEventListeners()
-    this.showWelcomeMessage()
+    this.loadTheme()
+    this.loadChatHistory()
     this.userInput.focus()
   }
 
@@ -110,6 +121,38 @@ class AnimeBot {
       }
     })
     this.sendButton.addEventListener('click', () => this.sendMessage())
+
+    this.userInput.addEventListener('input', () => {
+      const charCounter = document.getElementById('charCounter')
+      const length = this.userInput.value.length
+      charCounter.textContent = `${length} / 500`
+      if (length > 450) {
+        charCounter.style.color = '#f5576c'
+      } else {
+        charCounter.style.color = 'var(--text-secondary)'
+      }
+    })
+
+    const themeToggle = document.getElementById('themeToggle')
+    if (themeToggle) {
+      themeToggle.addEventListener('click', () => this.toggleTheme())
+    }
+
+    const clearChatBtn = document.getElementById('clearChatButton')
+    if (clearChatBtn) {
+      clearChatBtn.addEventListener('click', () => this.clearChat())
+    }
+
+    const quickActionBtns = document.querySelectorAll('.quick-action-btn')
+    quickActionBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const query = btn.getAttribute('data-query')
+        if (query) {
+          this.userInput.value = query
+          this.sendMessage()
+        }
+      })
+    })
   }
 
   async sendOpenAIRequest(text) {
@@ -153,12 +196,24 @@ class AnimeBot {
   async sendMessage() {
     const message = this.userInput.value.trim()
 
-    if (!message) return
+    if (!message) {
+      // Add visual feedback for empty message
+      this.userInput.classList.add('shake')
+      setTimeout(() => this.userInput.classList.remove('shake'), 500)
+      return
+    }
+
+    if (this.isProcessing) {
+      return // Prevent multiple simultaneous requests
+    }
+
+    this.isProcessing = true
 
     this.addMessage(message, 'user')
     this.userInput.value = ''
     this.userInput.disabled = true
     this.sendButton.disabled = true
+    this.sendButton.classList.add('loading')
     this.showTyping()
 
     try {
@@ -168,18 +223,30 @@ class AnimeBot {
     } catch (error) {
       this.hideTyping()
       this.addMessage(
-        '<p>I apologize, but I encountered an error processing your request. Please try again.</p>',
+        '<p><strong>Connection Error</strong></p>' +
+          '<p>I apologize, but I encountered an error processing your request.</p>' +
+          '<p><strong>Please try:</strong></p>' +
+          '<ul>' +
+          '<li>Checking your internet connection</li>' +
+          '<li>Refreshing the page</li>' +
+          '<li>Asking your question again in a moment</li>' +
+          '</ul>' +
+          '<p>If the problem persists, please contact support.</p>',
         'bot'
       )
       console.error('Error processing message:', error)
     } finally {
+      this.isProcessing = false
       this.userInput.disabled = false
       this.sendButton.disabled = false
+      this.sendButton.classList.remove('loading')
       this.userInput.focus()
+      // Update character counter
+      document.getElementById('charCounter').textContent = '0 / 500'
     }
   }
 
-  addMessage(content, sender) {
+  addMessage(content, sender, skipSave = false) {
     const messageDiv = document.createElement('div')
     messageDiv.className = `message ${sender}-message`
 
@@ -190,6 +257,20 @@ class AnimeBot {
     const contentDiv = document.createElement('div')
     contentDiv.className = 'message-content'
     contentDiv.innerHTML = content
+
+    if (sender === 'bot') {
+      const copyBtn = document.createElement('button')
+      copyBtn.className = 'copy-btn'
+      copyBtn.title = 'Copy message'
+      copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
+        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="2"/>
+      </svg>`
+      copyBtn.addEventListener('click', () =>
+        this.copyMessage(copyBtn, content)
+      )
+      contentDiv.appendChild(copyBtn)
+    }
 
     const timeDiv = document.createElement('div')
     timeDiv.className = 'message-time'
@@ -205,7 +286,8 @@ class AnimeBot {
     if (sender === 'bot') {
       const avatarDiv = document.createElement('div')
       avatarDiv.className = 'message-avatar'
-      avatarDiv.innerHTML = '<img src="images/anime.png" alt="Bot">'
+      avatarDiv.innerHTML =
+        "<img src=\"images/anime.png\" alt=\"Bot\" onerror=\"this.style.display='none'; this.parentElement.innerHTML='<svg viewBox=\\'0 0 24 24\\' fill=\\'none\\' xmlns=\\'http://www.w3.org/2000/svg\\'><circle cx=\\'12\\' cy=\\'12\\' r=\\'10\\' fill=\\'url(#grad)\\'/><defs><linearGradient id=\\'grad\\'><stop offset=\\'0%\\' stop-color=\\'#667eea\\'/><stop offset=\\'100%\\' stop-color=\\'#764ba2\\'/></linearGradient></defs></svg>'\">"
       messageDiv.appendChild(avatarDiv)
       messageDiv.appendChild(messageWrapper)
     }
@@ -223,6 +305,10 @@ class AnimeBot {
     }
 
     this.chatMessages.appendChild(messageDiv)
+
+    if (!skipSave) {
+      this.saveChatHistory(content, sender)
+    }
 
     this.scrollToBottom()
   }
@@ -262,31 +348,140 @@ class AnimeBot {
   }
 
   scrollToBottom() {
-    this.chatMessages.scrollTop = this.chatMessages.scrollHeight
+    this.chatMessages.scrollTo({
+      top: this.chatMessages.scrollHeight,
+      behavior: 'smooth',
+    })
   }
 
   showWelcomeMessage() {
-    setTimeout(() => {
-      this.addMessage(
-        '<p><strong>Welcome to Anime Intelligence Assistant</strong></p>' +
-          "<p>I'm your professional anime expert powered by OpenAI. I can help you with:</p>" +
-          '<ul>' +
-          '<li>Detailed anime and manga information</li>' +
-          '<li>Personalized recommendations (including hidden gems and underrated titles)</li>' +
-          '<li>New manga releases and underground indie manga</li>' +
-          '<li>Current rankings and trending anime/manga</li>' +
-          '<li>Character analysis and plot discussions</li>' +
-          '<li>Japanese cultural elements in anime (festivals, traditions, mythology)</li>' +
-          '<li>Studio history, production insights, and animation techniques</li>' +
-          '<li>Voice actors, anime music, and soundtracks</li>' +
-          '<li>Seasonal anime and upcoming releases</li>' +
-          '<li>Light novels, visual novels, and adaptations</li>' +
-          '<li>Streaming availability and release schedules</li>' +
-          '</ul>' +
-          "<p>Ask me anything about anime and I'll provide comprehensive, professional insights!</p>",
-        'bot'
+    const history = localStorage.getItem(this.STORAGE_KEYS.MESSAGES)
+    if (!history || JSON.parse(history).length === 0) {
+      setTimeout(() => {
+        this.addMessage(
+          '<p><strong>Welcome to Anime Intelligence Assistant</strong></p>' +
+            "<p>I'm your professional anime expert powered by OpenAI. I can help you with:</p>" +
+            '<ul>' +
+            '<li>Detailed anime and manga information</li>' +
+            '<li>Personalized recommendations (including hidden gems and underrated titles)</li>' +
+            '<li>New manga releases and underground indie manga</li>' +
+            '<li>Current rankings and trending anime/manga</li>' +
+            '<li>Character analysis and plot discussions</li>' +
+            '<li>Japanese cultural elements in anime (festivals, traditions, mythology)</li>' +
+            '<li>Studio history, production insights, and animation techniques</li>' +
+            '<li>Voice actors, anime music, and soundtracks</li>' +
+            '<li>Seasonal anime and upcoming releases</li>' +
+            '<li>Light novels, visual novels, and adaptations</li>' +
+            '<li>Streaming availability and release schedules</li>' +
+            '</ul>' +
+            "<p>Ask me anything about anime and I'll provide comprehensive, professional insights!</p>",
+          'bot',
+          true
+        )
+      }, 500)
+    }
+  }
+
+  saveChatHistory(content, sender) {
+    try {
+      let history = JSON.parse(
+        localStorage.getItem(this.STORAGE_KEYS.MESSAGES) || '[]'
       )
-    }, 500)
+      history.push({ content, sender, timestamp: new Date().toISOString() })
+      if (history.length > 50) {
+        history = history.slice(-50)
+      }
+      localStorage.setItem(this.STORAGE_KEYS.MESSAGES, JSON.stringify(history))
+    } catch (error) {
+      console.error('Error saving chat history:', error)
+    }
+  }
+
+  loadChatHistory() {
+    try {
+      const history = JSON.parse(
+        localStorage.getItem(this.STORAGE_KEYS.MESSAGES) || '[]'
+      )
+      history.forEach((msg) => {
+        this.addMessage(msg.content, msg.sender, true)
+      })
+      if (history.length === 0) {
+        this.showWelcomeMessage()
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error)
+      this.showWelcomeMessage()
+    }
+  }
+
+  clearChat() {
+    if (
+      confirm(
+        'Are you sure you want to clear all chat history? This cannot be undone.'
+      )
+    ) {
+      localStorage.removeItem(this.STORAGE_KEYS.MESSAGES)
+      this.chatMessages.innerHTML = ''
+      _config.response_id = ''
+      this.showWelcomeMessage()
+    }
+  }
+
+  toggleTheme() {
+    const body = document.body
+    const sunIcon = document.getElementById('sunIcon')
+    const moonIcon = document.getElementById('moonIcon')
+
+    body.classList.toggle('light-mode')
+
+    if (body.classList.contains('light-mode')) {
+      sunIcon.style.display = 'none'
+      moonIcon.style.display = 'block'
+      localStorage.setItem(this.STORAGE_KEYS.THEME, 'light')
+    } else {
+      sunIcon.style.display = 'block'
+      moonIcon.style.display = 'none'
+      localStorage.setItem(this.STORAGE_KEYS.THEME, 'dark')
+    }
+  }
+
+  loadTheme() {
+    const savedTheme = localStorage.getItem(this.STORAGE_KEYS.THEME)
+    const sunIcon = document.getElementById('sunIcon')
+    const moonIcon = document.getElementById('moonIcon')
+
+    if (savedTheme === 'light') {
+      document.body.classList.add('light-mode')
+      sunIcon.style.display = 'none'
+      moonIcon.style.display = 'block'
+    }
+  }
+
+  copyMessage(button, content) {
+    const temp = document.createElement('div')
+    temp.innerHTML = content
+    const text = temp.textContent || temp.innerText
+
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        button.classList.add('copied')
+        button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`
+
+        setTimeout(() => {
+          button.classList.remove('copied')
+          button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="2"/>
+        </svg>`
+        }, 2000)
+      })
+      .catch((err) => {
+        console.error('Failed to copy:', err)
+        alert('Failed to copy message. Please try again.')
+      })
   }
 }
 
