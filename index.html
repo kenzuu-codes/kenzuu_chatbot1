@@ -2,35 +2,25 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-    />
-    <meta
-      name="description"
-      content="AI-powered anime chatbot assistant. Get anime recommendations, manga insights, character analysis, and Japanese culture information."
-    />
-    <meta
-      name="keywords"
-      content="anime, manga, chatbot, AI assistant, anime recommendations"
-    />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="description" content="AI-powered anime chatbot assistant. Get anime recommendations, manga insights, character analysis, and Japanese culture information." />
+    <meta name="keywords" content="anime, manga, chatbot, AI assistant, anime recommendations" />
     <title>Anime Intelligence Assistant</title>
-    <link
-      rel="icon"
-      type="image/svg+xml"
-      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎌</text></svg>"
-    />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎌</text></svg>" />
+    <link rel="stylesheet" href="styles.css?v=20251123" />
   </head>
   <body>
-    <div class="chat-container">
-      <div class="chat-header">
+    <div class="chat-container" role="main">
+      <header class="chat-header">
         <div class="header-content">
           <div class="bot-avatar">
             <div class="avatar-circle">
               <img src="images/anime.png" alt="Anime Assistant Avatar" />
             </div>
-            <div class="status-indicator"></div>
+            <div class="status-indicator" role="status" aria-label="Online"></div>
           </div>
           <div class="bot-info">
             <h1>Anime Intelligence</h1>
@@ -41,6 +31,7 @@
           id="themeToggle"
           class="theme-toggle-btn"
           title="Toggle light/dark mode"
+          aria-label="Toggle theme"
         >
           <svg
             id="sunIcon"
@@ -82,11 +73,13 @@
           id="clearChatButton"
           class="clear-chat-btn"
           title="Clear chat history"
+          aria-label="Clear chat history"
         >
           <svg
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
           >
             <path
               d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"
@@ -97,12 +90,12 @@
             />
           </svg>
         </button>
-      </div>
+      </header>
 
-      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-messages" id="chatMessages" role="log" aria-live="polite" aria-label="Chat messages"></div>
 
       <div class="chat-input-container">
-        <div class="quick-actions" id="quickActions">
+        <nav class="quick-actions" id="quickActions" aria-label="Quick action buttons">
           <button
             class="quick-action-btn"
             data-query="Show me the most popular anime right now"
@@ -124,18 +117,21 @@
         </div>
 
         <div class="input-wrapper">
+          <label for="userInput" class="sr-only">Ask about anime</label>
           <input
             type="text"
             id="userInput"
             placeholder="Ask about any anime topic..."
             maxlength="500"
             autocomplete="off"
+            aria-describedby="charCounter"
           />
           <button id="sendButton" aria-label="Send message">
             <svg
               viewBox="0 0 24 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
             >
               <path
                 d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13"
@@ -147,7 +143,7 @@
             </svg>
           </button>
         </div>
-        <div class="char-counter" id="charCounter">0 / 500</div>
+        <div class="char-counter" id="charCounter" role="status" aria-live="polite">0 / 500</div>
       </div>
     </div>
 

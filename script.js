@@ -120,17 +120,25 @@ class AnimeBot {
         this.sendMessage()
       }
     })
+
     this.sendButton.addEventListener('click', () => this.sendMessage())
 
+    // Character counter with 100ms debounce for performance
+    let debounceTimer
     this.userInput.addEventListener('input', () => {
-      const charCounter = document.getElementById('charCounter')
-      const length = this.userInput.value.length
-      charCounter.textContent = `${length} / 500`
-      if (length > 450) {
-        charCounter.style.color = '#f5576c'
-      } else {
-        charCounter.style.color = 'var(--text-secondary)'
-      }
+      clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        const charCounter = document.getElementById('charCounter')
+        const length = this.userInput.value.length
+        charCounter.textContent = `${length} / 500`
+
+        charCounter.classList.remove('warning', 'danger')
+        if (length > 475) {
+          charCounter.classList.add('danger')
+        } else if (length > 400) {
+          charCounter.classList.add('warning')
+        }
+      }, 100)
     })
 
     const themeToggle = document.getElementById('themeToggle')
@@ -155,57 +163,16 @@ class AnimeBot {
     })
   }
 
-  async sendOpenAIRequest(text) {
-    let requestBody = {
-      model: _config.openAI_model,
-      input: text,
-      instructions: _config.ai_instruction,
-      previous_response_id: _config.response_id,
-    }
-
-    if (_config.response_id.length == 0) {
-      requestBody = {
-        model: _config.openAI_model,
-        input: text,
-        instructions: _config.ai_instruction,
-      }
-    }
-
-    try {
-      const response = await fetch(_config.openAI_api, {
-        method: 'POST',
-        body: JSON.stringify(requestBody),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`)
-      }
-
-      const data = await response.json()
-      console.log(data)
-      let output = data.output[0].content[0].text
-      _config.response_id = data.id
-
-      return output
-    } catch (error) {
-      console.error('Error calling OpenAI API:', error)
-      throw error
-    }
-  }
-
   async sendMessage() {
     const message = this.userInput.value.trim()
 
     if (!message) {
-      // Add visual feedback for empty message
       this.userInput.classList.add('shake')
       setTimeout(() => this.userInput.classList.remove('shake'), 500)
       return
     }
 
-    if (this.isProcessing) {
-      return // Prevent multiple simultaneous requests
-    }
+    if (this.isProcessing) return
 
     this.isProcessing = true
 
@@ -241,7 +208,6 @@ class AnimeBot {
       this.sendButton.disabled = false
       this.sendButton.classList.remove('loading')
       this.userInput.focus()
-      // Update character counter
       document.getElementById('charCounter').textContent = '0 / 500'
     }
   }
@@ -282,7 +248,6 @@ class AnimeBot {
     messageWrapper.appendChild(contentDiv)
     messageWrapper.appendChild(timeDiv)
 
-    // For bot messages: avatar first, then content
     if (sender === 'bot') {
       const avatarDiv = document.createElement('div')
       avatarDiv.className = 'message-avatar'
@@ -292,7 +257,6 @@ class AnimeBot {
       messageDiv.appendChild(messageWrapper)
     }
 
-    // For user messages: content first, then avatar
     if (sender === 'user') {
       messageDiv.appendChild(messageWrapper)
       const avatarDiv = document.createElement('div')
@@ -318,7 +282,6 @@ class AnimeBot {
     typingDiv.className = 'message bot-message typing-indicator'
     typingDiv.id = 'typing-indicator'
 
-    // Add bot avatar to typing indicator
     const avatarDiv = document.createElement('div')
     avatarDiv.className = 'message-avatar'
     avatarDiv.innerHTML = '<img src="images/anime.png" alt="Bot">'
@@ -402,9 +365,13 @@ class AnimeBot {
       const history = JSON.parse(
         localStorage.getItem(this.STORAGE_KEYS.MESSAGES) || '[]'
       )
-      history.forEach((msg) => {
+
+      const recentHistory = history.slice(-20)
+
+      recentHistory.forEach((msg) => {
         this.addMessage(msg.content, msg.sender, true)
       })
+
       if (history.length === 0) {
         this.showWelcomeMessage()
       }
@@ -457,6 +424,47 @@ class AnimeBot {
     }
   }
 
+  async sendOpenAIRequest(userMessage) {
+    try {
+      const requestBody = {
+        model: _config.openAI_model,
+        input: userMessage,
+        instructions: _config.ai_instruction,
+      }
+
+      if (_config.response_id) {
+        requestBody.previous_response_id = _config.response_id
+      }
+
+      const response = await fetch(_config.openAI_api, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      const output =
+        data.output?.[0]?.content?.[0]?.text ||
+        'Sorry, I could not process your request.'
+
+      if (data.id) {
+        _config.response_id = data.id
+      }
+
+      return output
+    } catch (error) {
+      console.error('Error calling OpenAI API:', error)
+      throw error
+    }
+  }
+
   copyMessage(button, content) {
     const temp = document.createElement('div')
     temp.innerHTML = content
@@ -487,4 +495,18 @@ class AnimeBot {
 
 document.addEventListener('DOMContentLoaded', () => {
   window.animeBot = new AnimeBot()
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => {
+        console.log(
+          'Service Worker registered successfully:',
+          registration.scope
+        )
+      })
+      .catch((error) => {
+        console.log('Service Worker registration failed:', error)
+      })
+  }
 })
